@@ -9,6 +9,8 @@ add_compile_options(-std=c++11)
 ## is used, also find other catkin packages
 find_package(catkin REQUIRED)
 
+find_package(Eigen3 REQUIRED)
+
 add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../pybind11 ${CMAKE_CURRENT_BINARY_DIR}/pybind11)
 
 ## System dependencies are found with CMake's conventions
@@ -101,10 +103,13 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../pybind11 ${CMAKE_CURRENT_BINARY_
 ## CATKIN_DEPENDS: catkin_packages dependent projects also need
 ## DEPENDS: system dependencies of this project that dependent projects also need
 catkin_package(
-#  INCLUDE_DIRS include
-#  LIBRARIES trajopt_tensorflow
-#  CATKIN_DEPENDS other_catkin_pkg
-#  DEPENDS system_lib
+  INCLUDE_DIRS
+#    include
+    ${EIGEN3_INCLUDE_DIRS}
+#  LIBRARIES
+#  CATKIN_DEPENDS
+  DEPENDS
+    EIGEN3
 )
 
 ###########
@@ -114,8 +119,9 @@ catkin_package(
 ## Specify additional locations of header files
 ## Your package locations should be listed before other locations
 include_directories(
-# include
-# ${catkin_INCLUDE_DIRS}
+#  include
+${catkin_INCLUDE_DIRS}
+SYSTEM ${EIGEN3_INCLUDE_DIRS}
 )
 
 ## Declare a C++ library

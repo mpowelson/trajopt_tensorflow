@@ -74,6 +74,10 @@ class TensorflowProblem:
             print("Cost Gradient2:")
             print(session.run(cost_grad2))
 
+            print("Returning Python type: ")
+            print(type(w_value))
+            return w_value
+
 
 
 
