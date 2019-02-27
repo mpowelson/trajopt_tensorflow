@@ -4,97 +4,28 @@ namespace py = pybind11;
 int main() {
     py::scoped_interpreter guard{}; // start the interpreter and keep it alive
 
-    py::print("Hello, World!"); // use the Python API
+    py::print("Starting!"); // use the Python API
+
+    // TODO: Figure out something with the Python Path. I now have to add it manually
 
     py::module tensorflow = py::module::import("tensorflow");
-//    py::module costs = py::module::import(("trajopt_tensorflow_python"));
+    py::module costs = py::module::import(("trajopt_tensorflow_python"));
 
-    py::exec(R"(
-             from __future__ import print_function
-             import tensorflow as tf
+    costs.attr("setupProblem")(10,6);
+    // Make joint velocity cost and add to problem
+    py::object joint_vel_cost = costs.attr("jointVelocityCost")();
+    py::object problem = costs.attr("TensorflowProblem")(joint_vel_cost);
 
-             ## Define function to setup the problem
-             def setupProblem(dof, steps):
-               with tf.variable_scope("TrajOpt", reuse=tf.AUTO_REUSE):
-                 v = tf.get_variable("joint_vars", [dof, steps])
-               return v
+    // Set endpoints and add to problem
+    py::object start_cost = costs.attr("fixStartCost")();
+    problem.attr("addCost")(start_cost);
+    py::object end_cost = costs.attr("fixEndCost")();
+    problem.attr("addCost")(end_cost);
 
-             ## Define our functions to generate the variables
-             def getJointVars():
-               with tf.variable_scope("TrajOpt", reuse=tf.AUTO_REUSE):
-                 v = tf.get_variable("joint_vars")
-               return v
+    // Solve the problem
+    problem.attr("solveProblem")();
 
-             def jointVelocityCost():
-                 joint_vals = getJointVars()
-                 diff0 = tf.slice(joint_vals, [0,0], tf.shape(joint_vals) - [1,0])
-                 diff1 = tf.slice(joint_vals, [1,0], tf.shape(joint_vals) - [1,0])
-                 diff = diff1 - diff0
-                 cost = tf.reduce_sum(tf.square(diff))
-                 return cost
 
-             def fixStartCost():
-                 joint_vals2 = getJointVars()
-                 fixed_value2 = tf.constant([0.,0.,0.,0.,0.,0.])
-                 first_row2 = tf.slice(joint_vals2, [0,0], [1,6])
-                 cost = tf.reduce_sum(tf.square((first_row2-fixed_value2)))
-                 return cost
-
-             def fixEndCost():
-                 joint_vals3 = getJointVars()
-                 fixed_value3 = tf.constant([1.,1.,1.,1.,1.,1.])
-                 last_row3 = tf.slice(joint_vals3, [9,0], [1,6])
-                 cost = tf.reduce_sum(tf.square((last_row3-fixed_value3)))
-                 return cost
-
-             print("Setting up problem...")
-             print(setupProblem(10,6))
-
-             ## Now we write out a cost (joint velocity squared error)
-             print("Defining the costs...")
-             cost_val_1 = jointVelocityCost()
-             print(cost_val_1)
-
-             # Now we write out another cost (Fix the start position)
-             cost_val_2 = fixStartCost()
-             print(cost_val_2)
-
-             # Now we write out another cost (Fix the end position)
-             cost_val_3 = fixEndCost()
-             print(cost_val_3)
-
-             # Now we join all of the costs
-             print("Joining the costs...")
-             cost = cost_val_1 + 10*cost_val_2 + 10*cost_val_3
-             print(cost)
-
-             # Calculate the gradients just for fun
-             joint_vals = getJointVars()
-             cost_grad = tf.gradients(cost, [joint_vals])
-             cost_grad2 = tf.gradients(cost_grad, [joint_vals])
-
-             # Now we optimize
-             train_op = tf.train.GradientDescentOptimizer(0.01).minimize(cost)
-             # https://www.tensorflow.org/api_docs/python/tf/train/Optimizer
-
-             model = tf.global_variables_initializer()
-
-             print("Optimizing...")
-             with tf.Session() as session:
-                 session.run(model)
-                 for i in range(10000):
-                     session.run(train_op)
-
-                 w_value = session.run(getJointVars())
-                 print("Joint Values: ")
-                 print(w_value)
-                 print("Cost:")
-                 print(session.run(cost))
-                 print("Cost Gradient:")
-                 print(session.run(cost_grad))
-                 print("Cost Gradient2:")
-                 print(session.run(cost_grad2))
-    )");
 
 
 }
