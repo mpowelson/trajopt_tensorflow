@@ -24,7 +24,6 @@ def joint_velocity_cost(joint_vals):
 def fix_start_cost(joint_vals):
     fixed_value2 = tf.constant([0.,0.,0.,0.,0.,0.])
     first_row2 = tf.slice(joint_vals, [0,0], [1,6])
-    tf.print(first_row2-fixed_value2)
 #    cost = tf.reduce_sum(tf.square((first_row2-fixed_value2)))
     cost = tf.square((first_row2-fixed_value2))
     return cost
@@ -33,19 +32,24 @@ def fix_start_cost(joint_vals):
 def fix_end_cost(joint_vals):
     fixed_value3 = tf.constant([1.,1.,1.,1.,1.,1.])
     last_row3 = tf.slice(joint_vals, [9,0], [1,6])
-    tf.print(last_row3-fixed_value3)
 #    cost = tf.reduce_sum(tf.square((last_row3-fixed_value3)))
     cost = tf.square((last_row3-fixed_value3))
     return cost
 
-#%%
-os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+@tf.function
+def combine(costs):
+    result = 0
+    for cost in costs:
+        result = result + cost
+    return result
 
+# Disable GPU
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
 ## Setup the problem
 print("Setting up problem...")
 #vars = init_vars(10, 6)
-vars = tf.Variable(tf.zeros([10,6]))
+vars = tf.Variable(tf.zeros([10, 6]))
 print(vars)
 
 with tf.GradientTape() as tape:
@@ -64,64 +68,37 @@ with tf.GradientTape() as tape:
 
     # Now we join all of the costs
     print("Joining the costs...")
-    cost = cost_val_1 + 10*cost_val_2 + 10*cost_val_3
-    print(cost)
+#    cost = cost_val_1 + 10*cost_val_2 + 10*cost_val_3
+    cost = combine([cost_val_1, cost_val_2, cost_val_3])
+#    print(cost)
+
+def cost_func():
+    return cost
+opt = tf.keras.optimizers.Adam(learning_rate=0.1)
+for i in range(10):
+    a = opt.minimize(cost_func, vars)
 
 print("Calculating gradient")
-grad = tape.gradient(cost, vars)
-print(grad)
-
-
+#grad = tape.gradient(cost, vars)
+#print(grad)
 
 
 print("Tensorflow version is {0}".format(tf.__version__))
 print("Num GPUs Available: ", len(tf.config.list_physical_devices('GPU')))
 
 print("Benchmarking speed...")
+print(cost)
+def cost_func2():
+    return combine([cost_val_1, cost_val_2, cost_val_3])
 def cost_func():
-    return fix_start_cost(vars) + joint_velocity_cost(vars) + fix_end_cost(vars)
-print("Function:", timeit.timeit(lambda: cost_func(), number=100))
-tf.print(cost)
+    t = fix_start_cost(vars) + joint_velocity_cost(vars) + fix_end_cost(vars)
+    return t
+print("Function:", timeit.timeit(lambda: cost_func2(), number=100))
 
 # Now we optimize
-opt = tf.keras.optimizers.SGD(learning_rate=0.01)
-for i in range(100):
+opt = tf.keras.optimizers.Adam(learning_rate=0.1)
+for i in range(10):
     a = opt.minimize(cost_func, vars)
 
 print("Joint Values: ")
 tf.print(vars, summarize=50)
-#print("Cost:")
-#print(cost_func)
-#print("Cost Gradient:")
-#print(grad)
-
-
-
-
-
-
-#cost_grad = tf.gradients(cost, [vars])
-#print(cost_grad)
-
-
-
-#with tf.Session() as session:
-#    print(vars.eval())
-#    print(joint_velocity_cost(vars).eval())
-    
-
-# print("Optimizing...")
-# with tf.Session() as session:
-#     session.run(model)
-#     for i in range(10000):
-#         session.run(train_op)
-#
-#     w_value = session.run(getJointVars())
-#     print("Joint Values: ")
-#     print(w_value)
-#     print("Cost:")
-#     print(session.run(cost))
-#     print("Cost Gradient:")
-#     print(session.run(cost_grad))
-#     print("Cost Gradient2:")
-#     print(session.run(cost_grad2))
